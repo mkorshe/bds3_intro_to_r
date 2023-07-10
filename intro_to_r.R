@@ -69,6 +69,10 @@ lengths
 
 ??geom_point
 
+install.packages(c("BiocManager", "remotes"))
+BiocManager::install(c("tidyverse", "SummarizedExperiment",
+                       "UCLouvain-CBIO/rWSBIM1207", "hexbin",
+                       "patchwork", "gridExtra", "lubridate"))
 
 ##### Робота з даними - завантаження і читання ####
 
