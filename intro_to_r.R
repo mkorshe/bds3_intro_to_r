@@ -160,19 +160,57 @@ meta_citplus
 
 
 metadata %>%
+  mutate(test = genome_size/generation)
+
+new_table <-
+metadata %>%
   mutate(genome_bp = genome_size *1e6)
 
 metadata %>%
   mutate(genome_bp = genome_size *1e6) %>%
-  head
-
-metadata %>%
-  mutate(genome_bp = genome_size *1e6) %>%
   filter(!is.na(clade)) %>%
-  head
+  nrow() %>% 
+  ggplot() 
+  #head
 
+#створити колонку genome_round - округлити genome_size до першого знаку після коми
+#відфільтрувати cit plus
+#побудувати гістограму з genome_round на осі x
 
 #
+  
+#
+
+my_df <- matrix(nrow = 3,ncol = 3, data = c(1:9))
+my_df
+my_df <- as.data.frame(my_df)
+
+colnames(my_df) <- c('Name','Age', 'City')
+
+print(colnames(my_df))
+
+my_df$new_column <- c(1:3)
+my_df[,'another_column'] <- 'G'
+
+my_df$new_column <- NULL
+my_df$another_column <- NULL
+
+my_df_2 <- my_df[,c('Age')]
+
+my_df_3 <- my_df[my_df$Name> 2, c('City')]
+my_df_3 <- my_df[my_df$Name> 2, c('City', "another_column")]
+
+#
+my_df[order(my_df$Name),]
+
+
+
+my_df$KKK <- c(1:3)
+
+my_df_s <- my_df[my_df$KKK >1,]
+
+
+
 
 metadata %>%
   group_by(cit) %>%
@@ -200,44 +238,48 @@ metadata %>%
             min_generation = min(generation))
 
 ##### data visualization ####
-
+library(tidyverse)
 genome_size <- metadata$genome_size
-
 
 plot(genome_size)
 
-plot(genome_size, pch=8)
+plot(genome_size, pch=3)
 
-plot(genome_size, pch=8, main="Scatter plot of genome sizes")
+plot(genome_size, pch=4, main="Scatter plot of genome sizes")
 
-hist(genome_size)
+hist(metadata$generation, breaks = 3)
 
-boxplot(genome_size ~ cit, metadata)
+boxplot(genome_size ~ clade, metadata)
 
-boxplot(genome_size ~ cit, metadata,  col=c("pink","purple", "darkgrey"),
-        main="Average expression differences between celltypes", ylab="Expression")
+boxplot(genome_size ~ cit, metadata, col=c("pink","purple", "darkgrey"),
+        main="Average expression differences between celltypes", ylab="Expression",
+        xlab="Bacteria type")
 
-#### Advances visualization ####
+#### Advanced visualization ####
 
 library(ggplot2)
 
 ggplot(metadata) +
   geom_point() 
 
-
 ggplot(metadata) +
-  geom_point(aes(x = sample, y= genome_size))
+  geom_point(aes(x = clade, y= genome_size, color = cit)) +
+  labs(x = "Clade", 
+       y = "Genome size of bacteria",
+       color = "Bacteria type") +
+  theme(axis.text.x = element_text(angle=45, hjust=1)) 
 
 ggplot(metadata) +
   geom_point(aes(x = sample, y= genome_size, color = generation, shape = cit), size = rel(3.0)) +
-  theme(axis.text.x = element_text(angle=45, hjust=1))
+  guides(color = guide_legend(title = "Users By guides"))#+
+  #theme(axis.text.x = element_text(angle=45, hjust=1)) 
 
 ggplot(metadata) +
   geom_bar(aes(x = genome_size))
 
 
 ggplot(metadata) +
-  geom_bar(aes(x = genome_size), stat = "bin", binwidth=0.05)
+  geom_bar(aes(x = genome_size), stat = "bin", binwidth=0.005)
 
 
 ggplot(metadata) +
@@ -245,12 +287,12 @@ ggplot(metadata) +
   ggtitle('Boxplot of genome size by citrate mutant type') +
   xlab('citrate mutant') +
   ylab('genome size') +
-  theme(panel.grid.major = element_line(size = .5, color = "grey"),
+  theme(panel.grid.major = element_line(size = .5, color = "white"),
         axis.text.x = element_text(angle=45, hjust=1),
         axis.title = element_text(size = rel(1.5)),
         axis.text = element_text(size = rel(1.25)))
 
-pdf("boxplot.pdf")
+#pdf("boxplot.pdf")
 
 ggplot(example_data) +
   geom_boxplot(aes(x = cit, y =....) +
@@ -260,12 +302,4 @@ ggplot(example_data) +
                  theme(panel.grid.major = element_line(...),
                        axis.text.x = element_text(...),
                        axis.title = element_text(...),
-                       axis.text = element_text(...)
-                       
-                       dev.off()
-                       
-                       
-
-
-
-
+                       axis.text = element_text(...))
