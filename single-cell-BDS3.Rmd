@@ -1,0 +1,273 @@
+---
+title: "Seurat_test BDS3"
+output: rmdformats::readthedown
+date: "`r Sys.Date()`"
+---
+
+Активізувати вікно коду - Ctrl+ALT+I
+=
+# Це заголовок
+## Це підзаголовок
+### Це під під заголовок 
+
+###### і так далі 
+
+## Встановлення пакетів
+
+```{r}
+# install.packages('Seurat')
+# 
+# remotes::install_github("satijalab/seurat-data", "seurat5", quiet = TRUE)
+# 
+# BiocManager::install('Seurat')
+
+```
+
+```{r}
+
+library(dplyr)
+library(Seurat)
+library(patchwork)
+
+# Load the PBMC dataset
+pbmc.data <- Read10X(data.dir = "/Users/korshe/bds3_intro_to_r/filtered_gene_bc_matrices/hg19/")
+# Initialize the Seurat object with the raw (non-normalized data).
+pbmc <- CreateSeuratObject(counts = pbmc.data, project = "pbmc3k", min.cells = 3, min.features = 200)
+pbmc
+
+```
+
+
+```{r}
+pbmc.data[c("C1orf185", "TCL1A", "MS4A1",'CDKN2C'), 14:26]
+```
+
+
+# QC and selecting cells for further analysis 
+# Якість контролю даних 
+
+```{r}
+# The [[ operator can add columns to object metadata. This is a great place to stash QC stats
+pbmc[["percent.mt"]] <- PercentageFeatureSet(pbmc, pattern = "^MT-")
+
+pbmc[["percent.A"]] <- PercentageFeatureSet(pbmc, pattern = "^A")
+
+Agenes <- pbmc[["percent.A"]]
+
+# pbmc[["percent.mt"]]
+
+
+mitoch <- pbmc[["percent.mt"]]
+mitoch$percent.mt
+
+mitoch$sum <- mitoch$percent.mt + 10
+hist(mitoch$percent.mt)
+
+```
+
+
+```{r}
+head(pbmc@meta.data, 5)
+meta_data <- pbmc@meta.data
+
+pbmc@assays$RNA
+
+```
+
+
+```{r}
+VlnPlot(pbmc, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"), ncol = 3, pt.size = 0.01 )
+
+# VlnPlot(pbmc, features = c( "percent.mt", "nFeature_RNA", "nCount_RNA"), ncol = 2)
+# 
+# VlnPlot(pbmc, features = c( "percent.mt"), ncol = 2)
+
+```
+
+1 - мітохондрії
+2 - унікальні гени
+3 - кількість підрахунків цих генів
+
+```{r}
+plot1 <- FeatureScatter(pbmc, feature1 = "nCount_RNA", feature2 = "percent.mt")
+plot2 <- FeatureScatter(pbmc, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
+plot1 + plot2
+```
+
+```{r}
+
+pbmc <- subset(pbmc, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 5 )
+
+# pbmc
+
+pbmc2 <- subset(pbmc, subset = nFeature_RNA > 200 & nFeature_RNA < 2500 & percent.mt < 5 & nCount_RNA < 5000 & nCount_RNA > 1000 )
+
+
+```
+
+& - і 
+| - або [[pipe]]
+
+# Normalizing the data | нНомралізація даних
+
+```{r}
+pbmc <- NormalizeData(pbmc, normalization.method = "LogNormalize", scale.factor = 10000)
+
+pbmc <- SCTransform(pbmc)
+
+```
+
+```{r}
+# pbmc@assays$SCT@data
+
+sct_mtrx <- as.matrix(pbmc@assays$SCT@data)
+raw_mtrx <- as.matrix(pbmc@assays$SCT@counts)
+
+raw_mtrx$mean_value <- rowMeans(as.matrix(raw_mtrx))
+
+```
+
+# Identification of highly variable features (feature selection)
+
+
+```{r}
+pbmc <- FindVariableFeatures(pbmc, selection.method = "vst", nfeatures = 2000)
+
+# Identify the 10 most highly variable genes
+top10 <- head(VariableFeatures(pbmc), 10)
+
+# plot variable features with and without labels
+plot1 <- VariableFeaturePlot(pbmc)
+plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
+#plot1 + plot2
+```
+
+# Perform linear dimensional reduction
+```{r}
+pbmc <- RunPCA(pbmc, features = VariableFeatures(object = pbmc))
+print(pbmc[["pca"]], dims = 1:5, nfeatures = 15)
+
+VizDimLoadings(pbmc, dims = 1:2, reduction = "pca")
+DimPlot(pbmc, reduction = "pca")
+DimHeatmap(pbmc, dims = 1, cells = 500, balanced = TRUE)
+ElbowPlot(pbmc)
+
+```
+
+```{r}
+set.seed(2)
+pbmc <- FindNeighbors(pbmc, dims = 1:10)
+pbmc <- FindClusters(pbmc, resolution = 0.5)
+head(Idents(pbmc), 5)
+```
+
+# Run non-linear dimensional reduction (UMAP/tSNE)
+
+```{r}
+pbmc <- RunUMAP(pbmc, dims = 1:10)
+DimPlot(pbmc, reduction = "umap")
+
+```
+# Finding differentially expressed features (cluster biomarkers)
+
+```{r}
+cluster2.markers <- FindMarkers(pbmc, ident.1 = 2, min.pct = 0.25)
+head(cluster2.markers, n = 5)
+```
+
+```{r}
+pbmc.markers <- FindAllMarkers(pbmc, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+pbmc.markers %>%
+    group_by(cluster) %>%
+    slice_max(n = 2, order_by = avg_log2FC)
+```
+
+```{r}
+VlnPlot(pbmc, features = c("MS4A1", "CD79A"))
+
+```
+
+
+
+```{r}
+VlnPlot(pbmc, features = c("NKG7", "PF4"), slot = "counts", log = TRUE)
+
+```
+
+```{r}
+FeaturePlot(pbmc, features = c("MS4A1", "GNLY", "CD3E", "CD14", "FCER1A", "FCGR3A", "LYZ", "PPBP",  "CD8A"))
+```
+
+```{r}
+pbmc.markers %>%
+    group_by(cluster) %>%
+    top_n(n = 10, wt = avg_log2FC) -> top10
+DoHeatmap(pbmc, features = top10$gene) + NoLegend()
+```
+
+Cluster ID	Markers	Cell Type
+0	IL7R, CCR7	Naive CD4+ T
+1	CD14, LYZ	CD14+ Mono
+2	IL7R, S100A4	Memory CD4+
+3	MS4A1	B
+4	CD8A	CD8+ T
+5	FCGR3A, MS4A7	FCGR3A+ Mono
+6	GNLY, NKG7	NK
+7	FCER1A, CST3	DC
+8	PPBP	Platelet
+
+```{r}
+pbmc <- RunUMAP(pbmc, dims = 1:10)
+
+DimPlot(pbmc, reduction = "umap")
+
+```
+
+```{r}
+new.cluster.ids <- c("Naive CD4+ T-1","Naive CD4+ T-2", "CD14+ Mono", "Memory CD4+ T", "B", "CD8+ T", "FCGR3A+ Mono",  "NK", "DC", "Platelet")
+names(new.cluster.ids) <- levels(pbmc)
+pbmc <- RenameIdents(pbmc, new.cluster.ids)
+DimPlot(pbmc, reduction = "umap", label = TRUE, pt.size = 0.5) + NoLegend()
+```
+
+```{r}
+pbmc_MemeoryTcell <- subset(pbmc,idents = 'B')
+
+pbmc_Naive2 <- subset(pbmc,idents = 'Naive CD4+ T-2')
+
+```
+
+```{r}
+cell_counts <- as.data.frame(table(Idents(pbmc)))
+```
+
+#### Нова спроба ####
+```{r}
+pbmc <- FindNeighbors(pbmc, dims = 1:10)
+# Змінити цей параметр resolution
+pbmc <- FindClusters(pbmc, resolution = 0.5)
+head(Idents(pbmc), 5)
+
+pbmc <- RunUMAP(pbmc, dims = 1:10)
+DimPlot(pbmc, reduction = "umap")
+
+pbmc.markers <- FindAllMarkers(pbmc, only.pos = TRUE, min.pct = 0.25, logfc.threshold = 0.25)
+# дослідити клітинні маркери
+pbmc.markers %>%
+    group_by(cluster) %>%
+    slice_max(n = 2, order_by = avg_log2FC)
+
+pbmc.markers %>%
+    group_by(cluster) %>%
+    top_n(n = 10, wt = avg_log2FC) -> top10
+DoHeatmap(pbmc, features = top10$gene) + NoLegend()
+
+# переназвати наші кластери
+new.cluster.ids <- c("Naive CD4 T", "CD14+ Mono", "Memory CD4 T", "B", "CD8 T", "FCGR3A+ Mono",
+    "NK", "DC", "Platelet")
+names(new.cluster.ids) <- levels(pbmc)
+pbmc <- RenameIdents(pbmc, new.cluster.ids)
+DimPlot(pbmc, reduction = "umap", label = TRUE, pt.size = 0.5) + NoLegend()
+```
+
+
